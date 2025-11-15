@@ -81,7 +81,7 @@ export function VoiceControl({ onCommand }: VoiceControlProps) {
         ) : (
           <>
             <MicOff className="w-5 h-5" />
-            <span className="text-sm">Voice Control</span>
+            <span className="text-sm">Voice Assist</span>
           </>
         )}
       </button>
