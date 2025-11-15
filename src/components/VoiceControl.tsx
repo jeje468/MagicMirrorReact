@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Sparkles } from 'lucide-react';
-import { sendToGemini } from '../services/gemini';
+import { sendToGemini, ConversationMessage } from '../services/gemini';
 import { initSimpleWakeWord, startSimpleWakeWord, stopSimpleWakeWord, releaseSimpleWakeWord, resetCommandMode } from '../services/simpleWakeWord';
 import { speakText } from '../services/elevenlabs';
 
@@ -24,6 +24,8 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
   const [geminiResponse, setGeminiResponse] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [wakeWordStatus, setWakeWordStatus] = useState<string>('Initializing...');
+  const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
+  const conversationHistoryRef = useRef<ConversationMessage[]>([]);
   const wakeWordTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const commandRecognitionRef = useRef<any>(null);
 
@@ -183,6 +185,7 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
       const context = 
       `You are a helpful and patient AI assistant for a smart mirror designed for elderly users.
       Speak clearly, warmly, and at a comfortable pace. Use simple, friendly language.
+      You are having an ongoing conversation with the user - remember what was discussed previously.
       
       IMPORTANT: You must respond with ONLY valid JSON. Do NOT use markdown code blocks or any formatting. Return raw JSON only.
       
@@ -208,6 +211,7 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
       - Keep responses brief but warm
       - If something isn't clear, gently ask them to repeat
       - Address them respectfully
+      - Remember and refer back to previous topics in the conversation if necessary and it makes sense
       
       Task Rules:
       - Set task to null if the user is just chatting, asking questions, or needs information
@@ -222,7 +226,9 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
       {"message": "That's a wonderful question! The weather today looks quite nice.", "task": null, "parameters": {}}
       {"message": "I'm sorry, I didn't quite catch that. Could you please repeat?", "task": null, "parameters": {}}`;
       
-      const result = await sendToGemini(command, context);
+      // Use ref to get current conversation history (avoids closure issues)
+      console.log('📝 Sending to Gemini with history length:', conversationHistoryRef.current.length);
+      const result = await sendToGemini(command, context, conversationHistoryRef.current);
       
       if (result.error) {
         console.error('Gemini error:', result.error);
@@ -258,6 +264,16 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
           if (aiResponse.task && onTaskExecute) {
             onTaskExecute(aiResponse.task, aiResponse.parameters || {});
           }
+          
+          // Add to conversation history (both state and ref)
+          const newHistory = [
+            ...conversationHistoryRef.current,
+            { role: 'user' as const, parts: command },
+            { role: 'model' as const, parts: aiResponse.message }
+          ];
+          conversationHistoryRef.current = newHistory;
+          setConversationHistory(newHistory);
+          console.log('💬 Conversation history updated. New length:', newHistory.length);
           
           // Speak the response using ElevenLabs
           speakText(aiResponse.message);
