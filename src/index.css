@@ -626,6 +626,22 @@
   mask-image: radial-gradient(circle at var(--flare-x, 72%) var(--flare-y, 22%), rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 20%, rgba(0,0,0,0.0) 45%);
 }
 
+/* Blinding white-out when sun hits directly */
+.mirror .mirror-blind {
+  background:
+    radial-gradient(circle at var(--flare-x, 72%) var(--flare-y, 22%), rgba(255,255,255,1) 0%, rgba(255,255,255,0.8) 8%, rgba(255,255,255,0.35) 20%, rgba(255,255,255,0) 42%);
+  filter: blur(1.2px);
+  mix-blend-mode: screen;
+  opacity: var(--blind-opacity, 0);
+  transition: opacity 400ms ease;
+}
+
+/* Dimming content slightly when blinding occurs for readability simulation */
+.mirror .mirror-content {
+  filter: brightness(calc(1 - (var(--blind-opacity, 0) * 0.25)));
+  transition: filter 300ms ease;
+}
+
 @layer utilities {
   .absolute {
     position: absolute;

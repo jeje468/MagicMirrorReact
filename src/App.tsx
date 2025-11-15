@@ -58,14 +58,26 @@ export default function App() {
         if (!active) return;
         const { azimuth, elevation } = estimateSunPosition(geo.latitude, geo.longitude, new Date());
         const pos = sunToScreenPosition(azimuth, elevation);
+        // Compute blinding opacity when flare is near center (hard to read)
+        const cx = 50, cy = 42; // center hotspot target
+        const dx = pos.xPercent - cx;
+        const dy = pos.yPercent - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const R = 52; // falloff radius in percent units
+        const core = 12; // fully blinding core radius
+        const base = Math.max(0, 1 - dist / R);
+        let blind = Math.pow(base, 1.4) * (pos.intensity * 2.4);
+        if (dist < core) blind = Math.min(1, pos.intensity * 3);
+        blind = Math.min(1, blind);
         setCssVars({
           ['--flare-x' as any]: `${pos.xPercent}%`,
           ['--flare-y' as any]: `${pos.yPercent}%`,
           ['--flare-opacity' as any]: pos.intensity.toFixed(3),
+          ['--blind-opacity' as any]: blind.toFixed(3),
         });
       } catch {
         // Fallback defaults near top-right
-        setCssVars({ ['--flare-x' as any]: '72%', ['--flare-y' as any]: '22%', ['--flare-opacity' as any]: '0.22' });
+        setCssVars({ ['--flare-x' as any]: '72%', ['--flare-y' as any]: '22%', ['--flare-opacity' as any]: '0.22', ['--blind-opacity' as any]: '0.0' });
       }
     })();
     const id = window.setInterval(() => {
@@ -76,10 +88,21 @@ export default function App() {
           if (!active) return;
           const { azimuth, elevation } = estimateSunPosition(geo.latitude, geo.longitude, new Date());
           const pos = sunToScreenPosition(azimuth, elevation);
+          const cx = 50, cy = 42;
+          const dx = pos.xPercent - cx;
+          const dy = pos.yPercent - cy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const R = 52;
+          const core = 12;
+          const base = Math.max(0, 1 - dist / R);
+          let blind = Math.pow(base, 1.4) * (pos.intensity * 2.4);
+          if (dist < core) blind = Math.min(1, pos.intensity * 3);
+          blind = Math.min(1, blind);
           setCssVars({
             ['--flare-x' as any]: `${pos.xPercent}%`,
             ['--flare-y' as any]: `${pos.yPercent}%`,
             ['--flare-opacity' as any]: pos.intensity.toFixed(3),
+            ['--blind-opacity' as any]: blind.toFixed(3),
           });
         } catch {}
       })();
@@ -89,6 +112,7 @@ export default function App() {
       window.clearInterval(id);
     };
   }, []);
+
 
   return (
     <div className={rootClass} style={cssVars}>
@@ -100,6 +124,7 @@ export default function App() {
           <div className="mirror-streak absolute inset-0 pointer-events-none" />
           <div className="mirror-glare absolute inset-0 pointer-events-none" />
           <div className="mirror-glare-warm absolute inset-0 pointer-events-none" />
+          <div className="mirror-blind absolute inset-0 pointer-events-none" />
           <div className="mirror-speckle absolute inset-0 pointer-events-none" />
           <div className="mirror-frame absolute inset-2 pointer-events-none" />
           <div className="mirror-noise absolute inset-0 pointer-events-none" />
@@ -154,6 +179,8 @@ export default function App() {
         <Sparkles className="w-4 h-4" />
         <span className="text-sm">{mirrorMode ? 'Mirror On' : 'Mirror Off'}</span>
       </button>
+
+      
     </div>
   );
 }

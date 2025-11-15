@@ -69,8 +69,8 @@ export function VoiceControl({ onCommand }: VoiceControlProps) {
         onClick={toggleListening}
         className={`flex items-center gap-3 px-6 py-3 rounded-full transition-all ${
           isListening 
-            ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
-            : 'bg-gray-800 hover:bg-gray-700'
+            ? 'bg-red-600/70 hover:bg-red-700/80 animate-pulse' 
+            : 'bg-gray-800/50 hover:bg-gray-700/60'
         }`}
       >
         {isListening ? (
