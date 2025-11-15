@@ -415,20 +415,6 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
         )}
       </button>
       
-      {transcript && (
-        <div className="mt-3 px-4 py-2 bg-gray-800 rounded-lg text-sm max-w-xs">
-          <div className="font-medium text-blue-400 mb-1">You said:</div>
-          "{transcript}"
-        </div>
-      )}
-      
-      {isProcessing && (
-        <div className="mt-3 px-4 py-2 bg-gray-800 rounded-lg text-sm max-w-xs flex items-center gap-2">
-          <Sparkles className="w-4 h-4 animate-pulse text-purple-400" />
-          <span className="text-gray-400">Thinking...</span>
-        </div>
-      )}
-      
       {geminiResponse && !isProcessing && (
         <div className="mt-3 px-4 py-2 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg text-sm max-w-md">
           <div className="flex items-center gap-2 font-medium text-purple-300 mb-1">

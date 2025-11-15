@@ -1,7 +1,7 @@
 const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
 // const VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb'; // Default voice, you can change this
 // const VOICE_ID = 'dhwafD61uVd8h85wAZSE';
-const VOICE_ID = 'HP0CJnuVibPyFDA65FsI';
+const VOICE_ID = 'FGY2WhTYpPnrIDTdsKH5';
 
 if (!ELEVENLABS_API_KEY) {
   console.warn('ElevenLabs API key not found. Please add VITE_ELEVENLABS_API_KEY to your .env.local file');
