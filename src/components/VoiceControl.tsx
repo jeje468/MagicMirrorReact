@@ -253,9 +253,6 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
           
           // Speak the response using ElevenLabs
           speakText(aiResponse.message);
-          
-          // Clear response after 10 seconds
-          setTimeout(() => setGeminiResponse(''), 10000);
         } catch (parseError) {
           console.error('Error parsing JSON response:', parseError);
           console.log('Raw response:', result.text);
@@ -264,19 +261,12 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
           if (onGeminiResponse) {
             onGeminiResponse(result.text);
           }
-          speakText(result.text);
-          setTimeout(() => setGeminiResponse(''), 10000);
+          setTimeout(() => {
+            setGeminiResponse('');
+            setTranscript('');
+            console.log('Auto-reset after Gemini response');
+          }, 10000);
         }
-        
-        // Speak the response using ElevenLabs
-        speakText(result.text);
-        
-        // Clear response and reset to wake word mode after 3 seconds
-        setTimeout(() => {
-          setGeminiResponse('');
-          setTranscript('');
-          console.log('Auto-reset after Gemini response');
-        }, 3000);
       }
     } catch (error) {
       console.error('Error calling Gemini:', error);
