@@ -23,6 +23,7 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
   const [gameOver, setGameOver] = useState(false);
   const [isJumping, setIsJumping] = useState(false);
   const [dinoY, setDinoY] = useState(0);
+  const dinoYRef = useRef(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [motionDetected, setMotionDetected] = useState(false);
   const [motionLevel, setMotionLevel] = useState(0);
@@ -34,6 +35,18 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
   const gameSpeedRef = useRef(5);
   const gameLoopRef = useRef<number | null>(null);
   const spawnIntervalRef = useRef<number | null>(null);
+  const spawnDelayRef = useRef<number>(4000);
+
+  // Compute spawn delay based on score (caps at 1400ms)
+  const computeSpawnDelay = (currentScore: number) => {
+    if (currentScore >= 2000) return 1400;
+    if (currentScore >= 1500) return 1700;
+    if (currentScore >= 1000) return 2000;
+    if (currentScore >= 700) return 2400;
+    if (currentScore >= 400) return 2800;
+    if (currentScore >= 200) return 3200;
+    return 4000; // initial easy pacing
+  };
   const scoreIntervalRef = useRef<number | null>(null);
 
   // Game constants
@@ -52,12 +65,15 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Game intervals
+  // Game intervals & initial spawn setup
   useEffect(() => {
     if (gameStarted && !gameOver) {
       gameLoopRef.current = window.setInterval(updateGame, 20);
-      spawnIntervalRef.current = window.setInterval(spawnObstacle, 1500);
       scoreIntervalRef.current = window.setInterval(() => setScore(s => s + 1), 100);
+
+      // Set initial spawn interval
+      spawnDelayRef.current = computeSpawnDelay(0);
+      spawnIntervalRef.current = window.setInterval(spawnObstacle, spawnDelayRef.current);
 
       return () => {
         if (gameLoopRef.current) clearInterval(gameLoopRef.current);
@@ -65,8 +81,18 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
         if (scoreIntervalRef.current) clearInterval(scoreIntervalRef.current);
       };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStarted, gameOver]);
+
+  // Dynamically adjust obstacle spawn rate as score increases
+  useEffect(() => {
+    if (!gameStarted || gameOver) return;
+    const newDelay = computeSpawnDelay(score);
+    if (newDelay !== spawnDelayRef.current) {
+      spawnDelayRef.current = newDelay;
+      if (spawnIntervalRef.current) clearInterval(spawnIntervalRef.current);
+      spawnIntervalRef.current = window.setInterval(spawnObstacle, spawnDelayRef.current);
+    }
+  }, [score, gameStarted, gameOver]);
 
   // redraw on state changes
   useEffect(() => {
@@ -74,17 +100,16 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dinoY, obstacles, gameStarted, gameOver, score]);
 
-  // Global space bar listener (works even when component not focused)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
-        if (dinoY === 0 && gameStarted && !gameOver) jump();
+        if (dinoYRef.current === 0 && gameStarted && !gameOver) jump();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [dinoY, gameStarted, gameOver]);
+  }, [gameStarted, gameOver]);
 
   const cleanup = () => {
     if (stream) stream.getTracks().forEach(t => t.stop());
@@ -107,12 +132,12 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
       alert('Could not access camera. Please grant permissions.');
     }
   };
-
   const startGame = () => {
     setGameStarted(true);
     setGameOver(false);
     setScore(0);
     setDinoY(0);
+    dinoYRef.current = 0;
     setObstacles([]);
     obstacleIdRef.current = 0;
     gameSpeedRef.current = 5;
@@ -120,10 +145,9 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
     previousFrameRef.current = null;
     startDetection();
   };
-
   const jump = () => {
-    // dinoY === 0 means on the ground; set positive upward velocity
-    if (dinoY === 0 && !gameOver && gameStarted) {
+    // dinoYRef.current === 0 means on the ground; set positive upward velocity
+    if (dinoYRef.current === 0 && !gameOver && gameStarted) {
       setIsJumping(true);
       velocityRef.current = JUMP_POWER;
       setTimeout(() => setIsJumping(false), 300);
@@ -140,38 +164,42 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
     };
     setObstacles(prev => [...prev, newObstacle]);
   };
-
+  
   const updateGame = () => {
     if (!gameStarted || gameOver) return;
 
     // dino physics (dinoY positive = up)
     velocityRef.current += GRAVITY; // gravity reduces upward velocity
-    setDinoY(prev => {
-      const newY = prev + velocityRef.current;
-      // land when newY <= 0 (ground)
-      if (newY <= 0) {
-        velocityRef.current = 0;
-        return 0;
-      }
-      return newY;
-    });
+    let newY = dinoYRef.current + velocityRef.current;
+    if (newY <= 0) {
+      newY = 0;
+      velocityRef.current = 0;
+    }
+    setDinoY(newY);
+    dinoYRef.current = newY;
 
     // obstacles
-    setObstacles(prev => {
-      const updated = prev.map(o => ({ ...o, x: o.x - gameSpeedRef.current }));
-      updated.forEach(obs => {
-        if (
-          obs.x < DINO_X + DINO_WIDTH &&
-          obs.x + obs.width > DINO_X &&
-          // collision: if dino bottom (GROUND_Y - dinoY) is below obstacle top + tolerance
-          GROUND_Y - dinoY < GROUND_Y - obs.height + 10
-        ) {
+    setObstacles((prev: Obstacle[]) => {
+      const updated = prev.map((o: Obstacle) => ({ ...o, x: o.x - gameSpeedRef.current }));
+      for (const obs of updated) {
+        // Check horizontal collision
+        const horizontalCollision = obs.x < DINO_X + DINO_WIDTH && obs.x + obs.width > DINO_X;
+
+        // Check vertical collision (use the latest dinoY from ref)
+        const dinoBottom = GROUND_Y - dinoYRef.current;
+        const obstacleTop = GROUND_Y - obs.height;
+
+        // Collision happens if dino bottom touches or goes below obstacle top (didn't jump high enough)
+        const verticalCollision = dinoBottom >= obstacleTop;
+
+        if (horizontalCollision && verticalCollision) {
           setGameOver(true);
           setGameStarted(false);
           if (score > highScore) setHighScore(score);
+          break;
         }
-      });
-      return updated.filter(o => o.x > -50);
+      }
+      return updated.filter((o: Obstacle) => o.x > -50);
     });
 
     if (score > 0 && score % 500 === 0) gameSpeedRef.current += 0.5;
@@ -277,7 +305,7 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
       if (centroidY !== null && prevCentroidY !== null) {
         // in video coords y increases downward; centroidY decreasing => upward motion
         const dy = prevCentroidY - centroidY; // positive = moved up on camera
-        if (dy > 6 && dinoY === 0 && !gameOver && gameStarted) {
+        if (dy > 6 && dinoYRef.current === 0 && !gameOver && gameStarted) {
           jump();
         }
       }
@@ -299,7 +327,7 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if ((e.code === 'Space' || e.key === ' ') && dinoY === 0 && gameStarted && !gameOver) {
+    if ((e.code === 'Space' || e.key === ' ') && dinoYRef.current === 0 && gameStarted && !gameOver) {
       e.preventDefault();
       jump();
     }
@@ -335,13 +363,32 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
             <canvas ref={gameCanvasRef} width={GAME_WIDTH} height={400} className="border-2 border-gray-300 rounded-lg w-full" />
 
             {gameOver && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
-                <div className="text-center">
-                  <h3 className="text-5xl text-gray-800 mb-2">G A M E  O V E R</h3>
-                  <p className="text-2xl text-gray-600 mb-6">Score: {score}</p>
-                  <button onClick={startGame} className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-xl transition-colors flex items-center gap-2 mx-auto">
-                    <Play className="w-6 h-6" /> Restart
-                  </button>
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+                <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl p-10 text-center max-w-md mx-auto border-4 border-red-500 transform scale-100 animate-in">
+                  <div className="mb-4">
+                    <div className="text-6xl mb-2">💥</div>
+                    <h3 className="text-5xl font-bold text-white mb-2 drop-shadow-lg">Game Over!</h3>
+                    <div className="w-20 h-1 bg-red-500 mx-auto mb-4"></div>
+                  </div>
+                  <div className="bg-gray-700 rounded-lg p-4 mb-6">
+                    <p className="text-gray-300 text-sm mb-1">Your Score</p>
+                    <p className="text-4xl font-bold text-white">{score}</p>
+                    {score > highScore && <p className="text-yellow-400 text-sm mt-2">🎉 New High Score!</p>}
+                  </div>
+                  <div className="flex gap-4 justify-center">
+                    <button
+                      onClick={startGame}
+                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-xl text-lg transition-all transform hover:scale-105 flex items-center gap-2 shadow-lg"
+                    >
+                      <Play className="w-5 h-5" /> Retry
+                    </button>
+                    <button
+                      onClick={handleClose}
+                      className="px-8 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-xl text-lg transition-all transform hover:scale-105 flex items-center gap-2 shadow-lg"
+                    >
+                      <X className="w-5 h-5" /> Exit
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
