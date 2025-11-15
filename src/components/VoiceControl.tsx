@@ -2,14 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Sparkles } from 'lucide-react';
 import { sendToGemini } from '../services/gemini';
 import { initSimpleWakeWord, startSimpleWakeWord, stopSimpleWakeWord, releaseSimpleWakeWord, resetCommandMode } from '../services/simpleWakeWord';
-// import { speakText } from '../services/elevenlabs';
+import { speakText } from '../services/elevenlabs';
+
+interface AIResponse {
+  message: string;
+  task: string | null;
+  parameters?: Record<string, any>;
+}
 
 interface VoiceControlProps {
   onCommand: (command: string) => void;
   onGeminiResponse?: (response: string) => void;
+  onTaskExecute?: (task: string, parameters: Record<string, any>) => void;
 }
-
-export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps) {
+  
+export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: VoiceControlProps) {
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -175,10 +182,37 @@ export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps)
     try {
       const context = 
       `You are an AI assistant for a smart mirror. 
-      The user can control various features like weather, calendar, news, video calls, and computer vision. 
-      Keep responses concise, friendly, and helpful. 
-      If the user asks for information, provide brief but accurate answers. 
-      If the command is unclear, ask for clarification.`;
+      The user can control various features like weather, calendar, news, video calls, and computer vision.
+      If the user requests something unrelated to the tasks, you should respond corresponding to the request, but return the task as null.
+      
+      IMPORTANT: You must respond with ONLY valid JSON. Do NOT use markdown code blocks or any formatting. Return raw JSON only.
+      
+      Required JSON format:
+      {
+        "message": "Your friendly response to the user",
+        "task": "task_name or null",
+        "parameters": {"param1": "value1", "param2": "value2"}
+      }
+      
+      Available tasks:
+      - "show_weather": Display weather (parameters: { "status": "true" or "false" depending on the request })
+      - "show_calendar": Display calendar events (parameters: { "date": "YYYY-MM-DD" or "today" })
+      - "show_news": Display news (parameters: { "category": "general|sports|technology|business" })
+      - "start_video_call": Start a video call (parameters: { "contact": "contact name" })
+      - "enable_computer_vision": Enable computer vision (parameters: { "mode": "face_detection|object_detection" })
+      - "set_reminder": Set a reminder (parameters: { "message": "reminder text", "time": "HH:MM" })
+      - null: For general conversation or when no action is needed
+      
+      Rules:
+      - Keep the message concise, friendly, and helpful
+      - Set task to null if the user is just chatting or asking questions
+      - If parameters are not specified by the user, use reasonable defaults
+      - If the command is unclear, set task to null and ask for clarification in the message
+      
+      Example responses:
+      {"message": "Sure! I'll show you the weather for New York.", "task": "show_weather", "parameters": {"location": "New York"}}
+      {"message": "The capital of France is Paris.", "task": null, "parameters": {}}
+      {"message": "I'll set a reminder for you.", "task": "set_reminder", "parameters": {"message": "Meeting", "time": "14:00"}}`;
       
       const result = await sendToGemini(command, context);
       
@@ -186,13 +220,56 @@ export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps)
         console.error('Gemini error:', result.error);
         setGeminiResponse('Sorry, I had trouble processing that.');
       } else {
-        setGeminiResponse(result.text);
-        if (onGeminiResponse) {
-          onGeminiResponse(result.text);
+        try {
+          // Remove markdown code blocks if present
+          let cleanedText = result.text.trim();
+          
+          // Remove ```json ... ``` or ``` ... ``` wrapper
+          if (cleanedText.startsWith('```')) {
+            // Find the first newline after opening ```
+            const firstNewline = cleanedText.indexOf('\n');
+            // Find the closing ```
+            const lastCodeFence = cleanedText.lastIndexOf('```');
+            
+            if (firstNewline !== -1 && lastCodeFence > firstNewline) {
+              cleanedText = cleanedText.substring(firstNewline + 1, lastCodeFence).trim();
+            }
+          }
+          
+          // Parse the JSON response
+          const aiResponse: AIResponse = JSON.parse(cleanedText);
+          
+          // Set the message for display and speech
+          setGeminiResponse(aiResponse.message);
+          
+          if (onGeminiResponse) {
+            onGeminiResponse(aiResponse.message);
+          }
+          
+          // Execute task if present
+          if (aiResponse.task && onTaskExecute) {
+            onTaskExecute(aiResponse.task, aiResponse.parameters || {});
+          }
+          
+          // Speak the response using ElevenLabs
+          speakText(aiResponse.message);
+          
+          // Clear response after 10 seconds
+          setTimeout(() => setGeminiResponse(''), 10000);
+        } catch (parseError) {
+          console.error('Error parsing JSON response:', parseError);
+          console.log('Raw response:', result.text);
+          // Fallback: treat as plain text
+          setGeminiResponse(result.text);
+          if (onGeminiResponse) {
+            onGeminiResponse(result.text);
+          }
+          speakText(result.text);
+          setTimeout(() => setGeminiResponse(''), 10000);
         }
         
         // Speak the response using ElevenLabs
-        // speakText(result.text);
+        speakText(result.text);
         
         // Clear response and reset to wake word mode after 3 seconds
         setTimeout(() => {
@@ -306,8 +383,8 @@ export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps)
         onClick={toggleListening}
         className={`flex items-center gap-3 px-6 py-3 rounded-full transition-all ${
           isListening 
-            ? 'bg-red-600/70 hover:bg-red-700/80 animate-pulse' 
-            : 'bg-gray-800/50 hover:bg-gray-700/60'
+            ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
+            : 'bg-gray-800 hover:bg-gray-700'
         }`}
       >
         {isListening ? (

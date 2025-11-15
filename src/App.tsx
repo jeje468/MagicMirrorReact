@@ -10,10 +10,12 @@ import { ComputerVision } from './components/ComputerVision';
 import { Sparkles } from 'lucide-react';
 import { getGeoInfo } from './lib/location';
 import { estimateSunPosition, sunToScreenPosition } from './lib/sun';
+import { Video, Camera } from "lucide-react";
 
 export default function App() {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showVision, setShowVision] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
 
   const initialGreeting = useMemo(() => {
     const h = new Date().getHours();
@@ -24,7 +26,7 @@ export default function App() {
 
   const handleVoiceCommand = (command: string) => {
     const lowerCommand = command.toLowerCase();
-    
+
     if (lowerCommand.includes('video call') || lowerCommand.includes('start call')) {
       setShowVideoCall(true);
     } else if (lowerCommand.includes('end call') || lowerCommand.includes('close call')) {
@@ -36,6 +38,46 @@ export default function App() {
     }
   };
 
+  const handleTaskExecution = (task: string, parameters: Record<string, any>) => {
+    console.log('Executing task:', task, 'with parameters:', parameters);
+    
+    switch (task) {
+      case 'show_weather':
+        setShowWeather(parameters.status === "true");
+        break;
+        
+      case 'show_calendar':
+        // Calendar is already shown, could update date if needed
+        console.log('Showing calendar for:', parameters.date);
+        break;
+        
+      case 'show_news':
+        // News is already shown, could update category if needed
+        console.log('Showing news for category:', parameters.category);
+        break;
+        
+      case 'start_video_call':
+        setShowVideoCall(true);
+        console.log('Starting video call with:', parameters.contact);
+        break;
+        
+      case 'enable_computer_vision':
+        setShowVision(true);
+        console.log('Enabling computer vision with mode:', parameters.mode);
+        break;
+        
+      case 'set_reminder':
+        console.log('Setting reminder:', parameters.message, 'at', parameters.time);
+        // You can implement reminder logic here
+        setGreeting(`Reminder set: ${parameters.message} at ${parameters.time}`);
+        setTimeout(() => setGreeting(initialGreeting), 5000);
+        break;
+        
+      default:
+        console.log('Unknown task:', task);
+    }
+  };
+
   const [mirrorMode, setMirrorMode] = useState(true);
   const timePhase = useMemo(() => {
     const h = new Date().getHours();
@@ -44,7 +86,7 @@ export default function App() {
     if (h >= 16 && h < 21) return 'evening';
     return 'night';
   }, []);
-  const rootClass = useMemo(() => (
+   const rootClass = useMemo(() => (
     `${mirrorMode ? 'mirror' : 'sky'} glare-${timePhase} relative w-screen h-screen text-white overflow-hidden`
   ), [mirrorMode, timePhase]);
 
@@ -81,31 +123,31 @@ export default function App() {
       }
     })();
     const id = window.setInterval(() => {
-      // Refresh roughly every 10 minutes to follow the sun
-      (async () => {
-        try {
-          const geo = await getGeoInfo();
-          if (!active) return;
+        // Refresh roughly every 10 minutes to follow the sun
+        (async () => {
+          try {
+            const geo = await getGeoInfo();
+            if (!active) return;
           const { azimuth, elevation } = estimateSunPosition(geo.latitude, geo.longitude, new Date());
-          const pos = sunToScreenPosition(azimuth, elevation);
+            const pos = sunToScreenPosition(azimuth, elevation);
           const cx = 50, cy = 42;
-          const dx = pos.xPercent - cx;
-          const dy = pos.yPercent - cy;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const R = 52;
-          const core = 12;
-          const base = Math.max(0, 1 - dist / R);
+            const dx = pos.xPercent - cx;
+            const dy = pos.yPercent - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const R = 52;
+            const core = 12;
+            const base = Math.max(0, 1 - dist / R);
           let blind = Math.pow(base, 1.4) * (pos.intensity * 2.4);
           if (dist < core) blind = Math.min(1, pos.intensity * 3);
-          blind = Math.min(1, blind);
-          setCssVars({
+            blind = Math.min(1, blind);
+            setCssVars({
             ['--flare-x' as any]: `${pos.xPercent}%`,
             ['--flare-y' as any]: `${pos.yPercent}%`,
             ['--flare-opacity' as any]: pos.intensity.toFixed(3),
             ['--blind-opacity' as any]: blind.toFixed(3),
-          });
-        } catch {}
-      })();
+            });
+          } catch {}
+        })();
     }, 10 * 60 * 1000);
     return () => {
       active = false;
@@ -142,7 +184,7 @@ export default function App() {
 
           {/* Right: Weather */}
           <div>
-            <Weather />
+            {showWeather && <Weather />}
           </div>
         </div>
 
@@ -158,7 +200,29 @@ export default function App() {
       </div>
 
       {/* Voice Control */}
-      <VoiceControl onCommand={handleVoiceCommand} />
+      <VoiceControl 
+        onCommand={handleVoiceCommand} 
+        onTaskExecute={handleTaskExecution}
+      />
+
+      {/* Action Buttons */}
+      <div className="fixed bottom-8 right-8 flex flex-col gap-3 z-40">
+        <button
+          onClick={() => setShowVideoCall(true)}
+          className="flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all shadow-xl hover:shadow-2xl hover:scale-105"
+        >
+          <Video className="w-5 h-5" />
+          <span className="text-sm">Start Video Call</span>
+        </button>
+
+        <button
+          onClick={() => setShowVision(!showVision)}
+          className="flex items-center gap-3 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-all shadow-xl hover:shadow-2xl hover:scale-105"
+        >
+          <Camera className="w-5 h-5" />
+          <span className="text-sm">Computer Vision</span>
+        </button>
+      </div>
 
       {/* Video Call Overlay */}
       {showVideoCall && (
