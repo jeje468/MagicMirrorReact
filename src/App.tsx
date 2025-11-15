@@ -7,7 +7,6 @@ import { Greeting } from './components/Greeting';
 import { VoiceControl } from './components/VoiceControl';
 import { VideoCall } from './components/VideoCall';
 import { ComputerVision } from './components/ComputerVision';
-import { Sparkles } from 'lucide-react';
 import { getGeoInfo } from './lib/location';
 import { estimateSunPosition, sunToScreenPosition } from './lib/sun';
 import { Video, Camera } from "lucide-react";
@@ -185,25 +184,6 @@ export default function App() {
         onTaskExecute={handleTaskExecution}
       />
 
-      {/* Action Buttons */}
-      <div className="fixed bottom-8 right-8 flex flex-col gap-3 z-40">
-        <button
-          onClick={() => setShowVideoCall(true)}
-          className="flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all shadow-xl hover:shadow-2xl hover:scale-105"
-        >
-          <Video className="w-5 h-5" />
-          <span className="text-sm">Start Video Call</span>
-        </button>
-
-        <button
-          onClick={() => setShowVision(!showVision)}
-          className="flex items-center gap-3 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-all shadow-xl hover:shadow-2xl hover:scale-105"
-        >
-          <Camera className="w-5 h-5" />
-          <span className="text-sm">Computer Vision</span>
-        </button>
-      </div>
-
       {/* Video Call Overlay */}
       {showVideoCall && (
         <VideoCall onClose={() => setShowVideoCall(false)} />
@@ -213,18 +193,6 @@ export default function App() {
       {showVision && (
         <ComputerVision onClose={() => setShowVision(false)} />
       )}
-
-      {/* Mirror Mode Toggle */}
-      <button
-        onClick={() => setMirrorMode((m) => !m)}
-        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full border border-gray-800/50 bg-black/35 backdrop-blur-md hover:bg-black/55 transition-colors flex items-center gap-2 ${mirrorMode ? 'text-white' : 'text-gray-200'}`}
-        title="Toggle Mirror Mode"
-      >
-        <Sparkles className="w-4 h-4" />
-        <span className="text-sm">{mirrorMode ? 'Mirror On' : 'Mirror Off'}</span>
-      </button>
-
-      
     </div>
   );
 }

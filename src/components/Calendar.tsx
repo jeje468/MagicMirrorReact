@@ -12,26 +12,17 @@ export function Calendar() {
     let mounted = true;
     (async () => {
       try {
-        const geo = await getGeoInfo();
+        // Use a static list of dummy birthdays instead of fetching holidays
         if (!mounted) return;
-        const cc = geo.countryCode || 'US';
-        setHeading(`${geo.countryName || cc} Holidays`);
-        const year = new Date().getFullYear();
-        const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${cc}`);
-        if (!res.ok) throw new Error('Holidays fetch failed');
-        const list: Array<{ date: string; localName: string; name: string }> = await res.json();
-        const today = new Date();
-        const upcoming = list
-          .filter((h) => new Date(h.date) >= new Date(today.toISOString().slice(0, 10)))
-          .slice(0, 6)
-          .map((h) => ({
-            name: h.localName || h.name,
-            date: new Date(h.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-          }));
-        setHolidays(upcoming);
+        setHeading('Birthdays');
+        setHolidays([
+          { name: 'Andrei Iliescu', date: 'March 03' },
+          { name: 'Riccardo Legnini', date: 'May 20' },
+          { name: 'Sofia Zandonà', date: 'September 17' },
+        ]);
       } catch (e: any) {
         if (!mounted) return;
-        setError(e?.message || 'Failed to load holidays');
+        setError(e?.message || 'Failed to load data');
       } finally {
         if (mounted) setLoading(false);
       }
