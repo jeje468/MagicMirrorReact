@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Sparkles } from 'lucide-react';
 import { sendToGemini } from '../services/gemini';
+import { initSimpleWakeWord, startSimpleWakeWord, stopSimpleWakeWord, releaseSimpleWakeWord, resetCommandMode } from '../services/simpleWakeWord';
 import { speakText } from '../services/elevenlabs';
 
 interface AIResponse {
@@ -14,25 +15,35 @@ interface VoiceControlProps {
   onGeminiResponse?: (response: string) => void;
   onTaskExecute?: (task: string, parameters: Record<string, any>) => void;
 }
-
+  
 export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: VoiceControlProps) {
+  const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [recognition, setRecognition] = useState<any>(null);
   const [geminiResponse, setGeminiResponse] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [wakeWordStatus, setWakeWordStatus] = useState<string>('Initializing...');
+  const wakeWordTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const commandRecognitionRef = useRef<any>(null);
+
+  const initializeRef = useRef(false);
 
   useEffect(() => {
-    // Check if browser supports Web Speech API
+    // Only initialize once
+    if (initializeRef.current) return;
+    initializeRef.current = true;
+
+    // Setup Web Speech API for command listening (separate instance)
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      const recognitionInstance = new SpeechRecognition();
+      const commandRecognition = new SpeechRecognition();
       
-      recognitionInstance.continuous = true;
-      recognitionInstance.interimResults = true;
-      recognitionInstance.lang = 'en-US';
+      commandRecognition.continuous = false;
+      commandRecognition.interimResults = true;
+      commandRecognition.lang = 'en-US';
 
-      recognitionInstance.onresult = (event: any) => {
+      commandRecognition.onresult = (event: any) => {
         let finalTranscript = '';
         
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -46,22 +57,123 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
           setTranscript(finalTranscript);
           onCommand(finalTranscript);
           
-          // Send to Gemini
-          handleGeminiRequest(finalTranscript);
+          // Stop listening immediately
+          commandRecognition.stop();
+          setIsListening(false);
           
-          // Clear transcript after 3 seconds
-          setTimeout(() => setTranscript(''), 3000);
+          // Clear wake word timeout since we got speech
+          if (wakeWordTimeoutRef.current) {
+            clearTimeout(wakeWordTimeoutRef.current);
+          }
+          
+          // Send to Gemini and then reset
+          handleGeminiRequest(finalTranscript).then(() => {
+            // Reset wake word detection after command is processed
+            setIsWakeWordActive(false);
+            setTimeout(() => {
+              console.log('Ready for next wake word...');
+              resetCommandMode();
+              // Resume wake word listening
+              startSimpleWakeWord().catch(() => {});
+            }, 500);
+          });
         }
       };
 
-      recognitionInstance.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
+      commandRecognition.onerror = (event: any) => {
+        // Silently ignore 'aborted' errors - they're expected when stopping
+        if (event.error !== 'aborted') {
+          console.error('Speech recognition error:', event.error);
+        }
         setIsListening(false);
       };
 
-      setRecognition(recognitionInstance);
+      setRecognition(commandRecognition);
+      commandRecognitionRef.current = commandRecognition; // Store in ref for wake word callback
     }
-  }, [onCommand]);
+
+    // Initialize simple wake word detector (uses its own recognition instance)
+    console.log('Initializing wake word detection...');
+    
+    const wakeWordCallbacks = {
+      onWakeWord: (word: string) => {
+        console.log('✓ Wake word detected:', word);
+        setIsWakeWordActive(true);
+        setWakeWordStatus('Ready!');
+        // Use a small delay to ensure recognition is set
+        setTimeout(() => {
+          const commandRecognition = commandRecognitionRef.current;
+          if (commandRecognition) {
+            console.log('Activating voice assistant after wake word...');
+            // Pause wake word detection to avoid conflicts during command capture
+            stopSimpleWakeWord().catch(() => {});
+
+            try {
+              commandRecognition.start();
+              setIsListening(true);
+              
+              // Auto-stop after 5 seconds if no speech detected
+              if (wakeWordTimeoutRef.current) {
+                clearTimeout(wakeWordTimeoutRef.current);
+              }
+              wakeWordTimeoutRef.current = setTimeout(() => {
+                console.log('5 second timeout - stopping listening');
+                if (commandRecognition) {
+                  commandRecognition.stop();
+                }
+                setIsListening(false);
+                setIsWakeWordActive(false);
+                resetCommandMode(); // Reset command mode immediately
+                console.log('Returned to wake word mode');
+                // Resume wake word detection after timeout
+                setTimeout(() => {
+                  startSimpleWakeWord().catch(() => {});
+                }, 300);
+              }, 5000);
+            } catch (error) {
+              console.error('Failed to start recognition after wake word:', error);
+              setIsWakeWordActive(false);
+              resetCommandMode();
+              // Ensure wake word resumes on failure
+              setTimeout(() => {
+                startSimpleWakeWord().catch(() => {});
+              }, 300);
+            }
+          } else {
+            console.error('Command recognition not available');
+            setIsWakeWordActive(false);
+          }
+        }, 100);
+      },
+      onError: (error: string) => {
+        console.error('Wake word error:', error);
+        setWakeWordStatus(`Error: ${error}`);
+      }
+    };
+    
+    initSimpleWakeWord({
+      wakeWords: ['hey mirror', 'computer', 'jarvis', 'ok mirror'],
+      sensitivity: 0.8,
+      ...wakeWordCallbacks
+    }).then(() => {
+      console.log('Starting wake word detection...');
+      return startSimpleWakeWord();
+    }).then(() => {
+      setWakeWordStatus('Listening for wake word...');
+      console.log('Wake word detection active');
+    }).catch((err) => {
+      console.error('Failed to initialize wake word:', err);
+      console.error('Error stack:', err.stack);
+      setWakeWordStatus('Wake word detection unavailable');
+    });
+
+    return () => {
+      releaseSimpleWakeWord();
+      if (wakeWordTimeoutRef.current) {
+        clearTimeout(wakeWordTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleGeminiRequest = async (command: string) => {
     setIsProcessing(true);
@@ -155,12 +267,53 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
           speakText(result.text);
           setTimeout(() => setGeminiResponse(''), 10000);
         }
+        
+        // Speak the response using ElevenLabs
+        speakText(result.text);
+        
+        // Clear response and reset to wake word mode after 3 seconds
+        setTimeout(() => {
+          setGeminiResponse('');
+          setTranscript('');
+          console.log('Auto-reset after Gemini response');
+        }, 3000);
       }
     } catch (error) {
       console.error('Error calling Gemini:', error);
       setGeminiResponse('Sorry, something went wrong.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const activateVoiceAssistant = () => {
+    if (!recognition) {
+      console.error('Speech recognition not available');
+      return;
+    }
+
+    // Start speech recognition for a limited time after wake word
+    try {
+      console.log('Starting speech recognition for commands...');
+      recognition.start();
+      setIsListening(true);
+      
+      // Auto-stop after 2 seconds if no speech detected
+      if (wakeWordTimeoutRef.current) {
+        clearTimeout(wakeWordTimeoutRef.current);
+      }
+      wakeWordTimeoutRef.current = setTimeout(() => {
+        console.log('2 second timeout - stopping listening');
+        if (recognition && isListening) {
+          recognition.stop();
+        }
+        setIsListening(false);
+        setIsWakeWordActive(false);
+        console.log('Returned to wake word mode');
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to start recognition:', error);
+      setIsWakeWordActive(false);
     }
   };
 
@@ -171,16 +324,61 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
     }
 
     if (isListening) {
+      // Stop listening
       recognition.stop();
       setIsListening(false);
+      if (wakeWordTimeoutRef.current) {
+        clearTimeout(wakeWordTimeoutRef.current);
+      }
     } else {
-      recognition.start();
-      setIsListening(true);
+      // Start manual listening with same 2-second timeout
+      try {
+        console.log('Manual listening activated...');
+        recognition.start();
+        setIsListening(true);
+        
+        // Same 5-second timeout as wake word activation (increased from 2s)
+        if (wakeWordTimeoutRef.current) {
+          clearTimeout(wakeWordTimeoutRef.current);
+        }
+        wakeWordTimeoutRef.current = setTimeout(() => {
+          console.log('5 second timeout - stopping manual listening');
+          if (recognition && isListening) {
+            recognition.stop();
+          }
+          setIsListening(false);
+          console.log('Returned to wake word mode');
+          // Ensure wake word detection restarts
+          setTimeout(() => {
+            resetCommandMode(); // Reset command mode
+            startSimpleWakeWord().catch(err => {
+              console.log('Wake word already running:', err.message);
+            });
+          }, 500);
+        }, 5000); // Increased to 5 seconds
+      } catch (error) {
+        console.error('Failed to start manual recognition:', error);
+      }
     }
   };
 
   return (
     <div className="fixed bottom-8 left-8 z-50">
+      {/* Wake word indicator */}
+      {isWakeWordActive && (
+        <div className="mb-2 px-3 py-1 bg-purple-600/70 rounded-full text-xs flex items-center gap-2 animate-pulse">
+          <Sparkles className="w-3 h-3" />
+          <span>Wake word detected</span>
+        </div>
+      )}
+      
+      {/* Wake word status */}
+      {wakeWordStatus !== 'Listening for wake word...' && (
+        <div className="mb-2 px-3 py-1 bg-blue-600/50 rounded-full text-xs max-w-xs">
+          {wakeWordStatus}
+        </div>
+      )}
+      
       <button
         onClick={toggleListening}
         className={`flex items-center gap-3 px-6 py-3 rounded-full transition-all ${
@@ -197,7 +395,7 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
         ) : (
           <>
             <MicOff className="w-5 h-5" />
-            <span className="text-sm">Voice Control</span>
+            <span className="text-sm">Voice Assist (Wake word ready)</span>
           </>
         )}
       </button>
