@@ -50,6 +50,10 @@ export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps)
           setTranscript(finalTranscript);
           onCommand(finalTranscript);
           
+          // Stop listening immediately
+          commandRecognition.stop();
+          setIsListening(false);
+          
           // Clear wake word timeout since we got speech
           if (wakeWordTimeoutRef.current) {
             clearTimeout(wakeWordTimeoutRef.current);
@@ -66,9 +70,6 @@ export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps)
               startSimpleWakeWord().catch(() => {});
             }, 500);
           });
-          
-          // Clear transcript after 3 seconds
-          setTimeout(() => setTranscript(''), 3000);
         }
       };
 
@@ -104,12 +105,12 @@ export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps)
               commandRecognition.start();
               setIsListening(true);
               
-              // Auto-stop after 2 seconds if no speech detected
+              // Auto-stop after 5 seconds if no speech detected
               if (wakeWordTimeoutRef.current) {
                 clearTimeout(wakeWordTimeoutRef.current);
               }
               wakeWordTimeoutRef.current = setTimeout(() => {
-                console.log('2 second timeout - stopping listening');
+                console.log('5 second timeout - stopping listening');
                 if (commandRecognition) {
                   commandRecognition.stop();
                 }
@@ -121,7 +122,7 @@ export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps)
                 setTimeout(() => {
                   startSimpleWakeWord().catch(() => {});
                 }, 300);
-              }, 2000); // Back to 2 seconds
+              }, 5000);
             } catch (error) {
               console.error('Failed to start recognition after wake word:', error);
               setIsWakeWordActive(false);
@@ -193,8 +194,12 @@ export function VoiceControl({ onCommand, onGeminiResponse }: VoiceControlProps)
         // Speak the response using ElevenLabs
         // speakText(result.text);
         
-        // Clear response after 10 seconds
-        setTimeout(() => setGeminiResponse(''), 10000);
+        // Clear response and reset to wake word mode after 3 seconds
+        setTimeout(() => {
+          setGeminiResponse('');
+          setTranscript('');
+          console.log('Auto-reset after Gemini response');
+        }, 3000);
       }
     } catch (error) {
       console.error('Error calling Gemini:', error);
