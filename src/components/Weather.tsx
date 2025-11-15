@@ -93,49 +93,30 @@ export function Weather() {
   }, [todayLabel, tomorrowLabel]);
 
   return (
-    <div className="text-white text-right">
+    <div className="text-white text-right text-lg">
       {/* Location and Time */}
-      <div className="text-xs uppercase tracking-wider text-gray-500 mb-2">
+      <div className="text-sm uppercase tracking-wider text-gray-500 mb-3">
         {locationLabel || (loading ? 'Locating…' : 'Unknown Location')}
       </div>
       
       {/* Current Conditions */}
       <div className="flex items-center justify-end gap-3 mb-2">
         <Wind className="w-5 h-5" />
-        <span className="text-sm">
+        <span className="text-base">
           {current?.windKmh != null ? `${Math.round(current.windKmh)} km/h` : '--'} {current?.windDir ?? ''}
         </span>
         <Sun className="w-6 h-6" />
-        <span className="text-lg">{current?.time ?? '--:--'}</span>
+        <span className="text-xl">{current?.time ?? '--:--'}</span>
       </div>
 
       {/* Temperature */}
       <div className="flex items-start justify-end gap-2 mb-1">
         <Cloud className="w-8 h-8 mt-2" />
-        <span className="text-7xl tracking-tight">{current ? current.temp : '--'}°</span>
+        <span className="text-8xl tracking-tight">{current ? current.temp : '--'}°</span>
       </div>
       {current?.feelsLike != null && (
-        <div className="text-gray-400 mb-6">Feels like {current.feelsLike}°</div>
+        <div className="text-gray-400 mb-6 text-lg">Feels like {current.feelsLike}°</div>
       )}
-
-      {/* Forecast */}
-      <div className="border-t border-gray-800 pt-4">
-        <div className="text-xs uppercase tracking-wider text-gray-500 mb-3">
-          Weather Forecast
-        </div>
-        <div className="flex flex-col gap-2">
-          {loading && <div className="text-xs text-gray-500">Loading weather…</div>}
-          {error && <div className="text-xs text-red-500">{error}</div>}
-          {!loading && !error && forecast.map((day, index) => (
-            <div key={index} className="flex items-center justify-end gap-4 text-sm">
-              <span className="w-20 text-left text-gray-400">{day.day}</span>
-              <Sun className="w-5 h-5" />
-              <span className="w-12 text-right">{day.high}°</span>
-              <span className="w-12 text-right text-gray-400">{day.low}°</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

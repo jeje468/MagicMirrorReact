@@ -377,7 +377,7 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
   };
 
   return (
-    <div className="fixed bottom-8 left-8 z-50">
+    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
       {/* Wake word indicator */}
       {isWakeWordActive && (
         <div className="mb-2 px-3 py-1 bg-purple-600/70 rounded-full text-xs flex items-center gap-2 animate-pulse">
@@ -395,11 +395,12 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
       
       <button
         onClick={toggleListening}
-        className={`flex items-center gap-3 px-6 py-3 rounded-full transition-all ${
-          isListening 
-            ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
-            : 'bg-gray-800 hover:bg-gray-700'
-        }`}
+        style={{
+          backgroundColor: isListening ? 'rgba(255,200,200,0.95)' : 'rgba(255,255,255,0.95)',
+          border: '1px solid rgba(0,0,0,0.06)',
+          boxShadow: 'none'
+        }}
+        className={`flex items-center gap-3 px-6 py-3 rounded-full transition-all text-black`}
       >
         {isListening ? (
           <>
@@ -409,7 +410,7 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
         ) : (
           <>
             <MicOff className="w-5 h-5" />
-            <span className="text-sm">Voice Assist (Wake word ready)</span>
+            <span className="text-sm">Voice Assist</span>
           </>
         )}
       </button>

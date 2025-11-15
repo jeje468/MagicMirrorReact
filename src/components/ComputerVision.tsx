@@ -336,30 +336,32 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-white z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0"
+      style={{
+        backgroundColor: 'rgba(0, 0, 0, 0.95)',
+        width: '100vw',
+        height: '100vh',
+        minHeight: '100svh'
+      }}
       onKeyDown={handleKeyPress}
       tabIndex={0}
     >
       {/* hidden canvas for detection */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      <div className="w-full max-w-5xl bg-white rounded-lg overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between p-4 bg-gray-800 text-white">
+      <div
+        className="w-full h-full max-w-5xl flex flex-col overflow-hidden shadow-2xl"
+        style={{ backgroundColor: 'var(--card)' }}>
+        <div className="flex items-center justify-between p-4 flex-shrink-0" style={{ color: '#ffffff', backgroundColor: '#8ac5f0' }}>
           <div className="flex items-center gap-3">
             <Camera className="w-6 h-6 text-blue-400" />
-            <h2 className="text-2xl">Dino Jump Game</h2>
+            <h2 className="text-2xl" style={{ color: '#ffffff' }}>Dino Jump Game</h2>
           </div>
           <button onClick={handleClose} className="p-2 hover:bg-gray-700 rounded transition-colors">
-            <X className="w-6 h-6" />
+            <X className="w-6 h-6" style={{ color: '#ffffff' }} />
           </button>
         </div>
-
-        <div className="flex justify-between items-center p-4 bg-gray-100 border-b">
-          <div className="text-gray-600">HI: <span className="text-2xl text-gray-800 ml-2">{highScore.toString().padStart(5, '0')}</span></div>
-          <div className="text-gray-600">SCORE: <span className="text-2xl text-gray-800 ml-2">{score.toString().padStart(5, '0')}</span></div>
-        </div>
-
-        <div className="flex gap-4 p-4 bg-white">
+        <div className="flex gap-4 p-4 bg-white flex-1 overflow-auto">
           <div className="flex-1 relative">
             <canvas ref={gameCanvasRef} width={GAME_WIDTH} height={400} className="border-2 border-gray-300 rounded-lg w-full" />
 
@@ -393,21 +395,6 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
                 </div>
               </div>
             )}
-
-            {!gameStarted && !gameOver && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
-                <div className="text-center">
-                  <h3 className="text-4xl text-gray-800 mb-4">Chrome Dino Game</h3>
-                  <p className="text-xl text-gray-600 mb-6 max-w-md">
-                    Move your hand or jump to make the dino jump!<br />
-                    Or press SPACE to jump.
-                  </p>
-                  {/* <button onClick={startGame} className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-xl transition-colors flex items-center gap-2 mx-auto">
-                    <Play className="w-6 h-6" /> Start Game
-                  </button> */}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="w-64">
@@ -421,29 +408,10 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
               style={{ transform: 'scaleX(-1)' }}
             />
 
-            <div className="mt-2 space-y-2">
-
-              <div className="p-2 bg-gray-100 border border-gray-300 rounded">
-                <div className="text-xs text-gray-600 mb-1">Motion Level: {motionLevel} / 3000</div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-100"
-                    style={{ width: `${Math.min((motionLevel / 3000) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
             <div className="mt-3 text-xs text-gray-500 text-center">
               💡 Move your arms up or wave to make the dino jump!
             </div>
           </div>
-        </div>
-
-        <div className="p-4 bg-gray-100 border-t text-center">
-          <p className="text-gray-700">
-            <strong>How to play:</strong> Move your hand in the upper part of the camera view or press SPACE to make the dinosaur jump over obstacles.
-          </p>
         </div>
       </div>
     </div>
