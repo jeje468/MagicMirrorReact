@@ -14,6 +14,7 @@ import { estimateSunPosition, sunToScreenPosition } from './lib/sun';
 export default function App() {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showVision, setShowVision] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
 
   const initialGreeting = useMemo(() => {
     const h = new Date().getHours();
@@ -33,6 +34,46 @@ export default function App() {
       setShowVision(!showVision);
     } else if (lowerCommand.includes('hello') || lowerCommand.includes('hi mirror') || lowerCommand.includes('good ')) {
       setGreeting('Hello! How can I assist you today?');
+    }
+  };
+
+  const handleTaskExecution = (task: string, parameters: Record<string, any>) => {
+    console.log('Executing task:', task, 'with parameters:', parameters);
+    
+    switch (task) {
+      case 'show_weather':
+        setShowWeather(parameters.status === "true");
+        break;
+        
+      case 'show_calendar':
+        // Calendar is already shown, could update date if needed
+        console.log('Showing calendar for:', parameters.date);
+        break;
+        
+      case 'show_news':
+        // News is already shown, could update category if needed
+        console.log('Showing news for category:', parameters.category);
+        break;
+        
+      case 'start_video_call':
+        setShowVideoCall(true);
+        console.log('Starting video call with:', parameters.contact);
+        break;
+        
+      case 'enable_computer_vision':
+        setShowVision(true);
+        console.log('Enabling computer vision with mode:', parameters.mode);
+        break;
+        
+      case 'set_reminder':
+        console.log('Setting reminder:', parameters.message, 'at', parameters.time);
+        // You can implement reminder logic here
+        setGreeting(`Reminder set: ${parameters.message} at ${parameters.time}`);
+        setTimeout(() => setGreeting(initialGreeting), 5000);
+        break;
+        
+      default:
+        console.log('Unknown task:', task);
     }
   };
 
@@ -142,7 +183,7 @@ export default function App() {
 
           {/* Right: Weather */}
           <div>
-            <Weather />
+            {showWeather && <Weather />}
           </div>
         </div>
 
@@ -158,7 +199,10 @@ export default function App() {
       </div>
 
       {/* Voice Control */}
-      <VoiceControl onCommand={handleVoiceCommand} />
+      <VoiceControl 
+        onCommand={handleVoiceCommand} 
+        onTaskExecute={handleTaskExecution}
+      />
 
       {/* Video Call Overlay */}
       {showVideoCall && (
