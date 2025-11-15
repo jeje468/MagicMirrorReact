@@ -8,6 +8,7 @@ import { VoiceControl } from './components/VoiceControl';
 import { VideoCall } from './components/VideoCall';
 import { ComputerVision } from './components/ComputerVision';
 
+
 export default function App() {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showVision, setShowVision] = useState(false);
@@ -49,6 +50,13 @@ export default function App() {
         <div className="flex-1 flex items-center justify-center">
           <Greeting message={greeting} />
         </div>
+        <button
+          onClick={() => setShowVideoCall(true)}
+          className="absolute bottom-10 right-10 bg-blue-600 px-6 py-3 rounded-xl text-white"
+        >
+          Start Video Call
+        </button>
+
 
         {/* Bottom: News */}
         <div className="mt-auto">
