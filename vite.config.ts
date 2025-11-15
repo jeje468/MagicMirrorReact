@@ -54,7 +54,7 @@
       outDir: 'build',
     },
     server: {
-      port: 3001,
+      port: 8080,
       open: true,
     },
   });
