@@ -15,7 +15,6 @@ import { Video, Camera } from "lucide-react";
 export default function App() {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showVision, setShowVision] = useState(false);
-  const [showWeather, setShowWeather] = useState(false);
 
   const initialGreeting = useMemo(() => {
     const h = new Date().getHours();
@@ -42,35 +41,16 @@ export default function App() {
     console.log('Executing task:', task, 'with parameters:', parameters);
     
     switch (task) {
-      case 'show_weather':
-        setShowWeather(parameters.status === "true");
+      case 'play_game':
+        if (parameters.action === 'start') {
+          setShowVision(true);
+        } else if (parameters.action === 'stop') {
+          setShowVision(false);
+        }
         break;
         
-      case 'show_calendar':
-        // Calendar is already shown, could update date if needed
-        console.log('Showing calendar for:', parameters.date);
-        break;
-        
-      case 'show_news':
-        // News is already shown, could update category if needed
-        console.log('Showing news for category:', parameters.category);
-        break;
-        
-      case 'start_video_call':
+      case 'make_call':
         setShowVideoCall(true);
-        console.log('Starting video call with:', parameters.contact);
-        break;
-        
-      case 'enable_computer_vision':
-        setShowVision(true);
-        console.log('Enabling computer vision with mode:', parameters.mode);
-        break;
-        
-      case 'set_reminder':
-        console.log('Setting reminder:', parameters.message, 'at', parameters.time);
-        // You can implement reminder logic here
-        setGreeting(`Reminder set: ${parameters.message} at ${parameters.time}`);
-        setTimeout(() => setGreeting(initialGreeting), 5000);
         break;
         
       default:
@@ -184,7 +164,7 @@ export default function App() {
 
           {/* Right: Weather */}
           <div>
-            {showWeather && <Weather />}
+            <Weather />
           </div>
         </div>
 

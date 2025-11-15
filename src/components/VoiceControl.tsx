@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Sparkles } from 'lucide-react';
-import { sendToGemini } from '../services/gemini';
+import { sendToGemini, ConversationMessage } from '../services/gemini';
 import { initSimpleWakeWord, startSimpleWakeWord, stopSimpleWakeWord, releaseSimpleWakeWord, resetCommandMode } from '../services/simpleWakeWord';
 import { speakText } from '../services/elevenlabs';
 
@@ -24,6 +24,8 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
   const [geminiResponse, setGeminiResponse] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [wakeWordStatus, setWakeWordStatus] = useState<string>('Initializing...');
+  const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
+  const conversationHistoryRef = useRef<ConversationMessage[]>([]);
   const wakeWordTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const commandRecognitionRef = useRef<any>(null);
 
@@ -181,40 +183,52 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
     
     try {
       const context = 
-      `You are an AI assistant for a smart mirror. 
-      The user can control various features like weather, calendar, news, video calls, and computer vision.
-      If the user requests something unrelated to the tasks, you should respond corresponding to the request, but return the task as null.
+      `You are a helpful and patient AI assistant for a smart mirror designed for elderly users.
+      Speak clearly, warmly, and at a comfortable pace. Use simple, friendly language.
+      You are having an ongoing conversation with the user - remember what was discussed previously.
       
       IMPORTANT: You must respond with ONLY valid JSON. Do NOT use markdown code blocks or any formatting. Return raw JSON only.
       
       Required JSON format:
       {
-        "message": "Your friendly response to the user",
+        "message": "Your warm, clear response to the user",
         "task": "task_name or null",
-        "parameters": {"param1": "value1", "param2": "value2"}
+        "parameters": {"param1": "value1"}
       }
       
       Available tasks:
-      - "show_weather": Display weather (parameters: { "status": "true" or "false" depending on the request })
-      - "show_calendar": Display calendar events (parameters: { "date": "YYYY-MM-DD" or "today" })
-      - "show_news": Display news (parameters: { "category": "general|sports|technology|business" })
-      - "start_video_call": Start a video call (parameters: { "contact": "contact name" })
-      - "enable_computer_vision": Enable computer vision (parameters: { "mode": "face_detection|object_detection" })
-      - "set_reminder": Set a reminder (parameters: { "message": "reminder text", "time": "HH:MM" })
-      - null: For general conversation or when no action is needed
+      - "play_game": Start the computer vision game (parameters: { "action": "start" or "stop" })
+        * Use "start" when user wants to play the game
+        * Use "stop" when user wants to return to main screen or exit the game
+      - "make_call": Make a video call (parameters: { "contact": "name of person to call" })
+        * Extract the person's name from the user's request
+      - null: For general conversation, questions, or friendly chat
       
-      Rules:
-      - Keep the message concise, friendly, and helpful
-      - Set task to null if the user is just chatting or asking questions
-      - If parameters are not specified by the user, use reasonable defaults
-      - If the command is unclear, set task to null and ask for clarification in the message
+      Rules for speaking to elderly users:
+      - Speak warmly and patiently, as if talking to a dear friend
+      - Use simple, clear words - avoid technical jargon
+      - Be encouraging and positive
+      - Keep responses brief but warm
+      - If something isn't clear, gently ask them to repeat
+      - Address them respectfully
+      - Remember and refer back to previous topics in the conversation if necessary and it makes sense
+      
+      Task Rules:
+      - Set task to null if the user is just chatting, asking questions, or needs information
+      - For the game: recognize phrases like "play game", "start game", "exit game", "go back", "return to main screen"
+      - For calls: recognize phrases like "call [name]", "phone [name]", "talk to [name]"
+      - Always respond to the user even if no task is performed
       
       Example responses:
-      {"message": "Sure! I'll show you the weather for New York.", "task": "show_weather", "parameters": {"location": "New York"}}
-      {"message": "The capital of France is Paris.", "task": null, "parameters": {}}
-      {"message": "I'll set a reminder for you.", "task": "set_reminder", "parameters": {"message": "Meeting", "time": "14:00"}}`;
+      {"message": "Of course, dear! Let me start the game for you.", "task": "play_game", "parameters": {"action": "start"}}
+      {"message": "No problem! I'll take you back to the main screen.", "task": "play_game", "parameters": {"action": "stop"}}
+      {"message": "I'll call Sarah for you right away.", "task": "make_call", "parameters": {"contact": "Sarah"}}
+      {"message": "That's a wonderful question! The weather today looks quite nice.", "task": null, "parameters": {}}
+      {"message": "I'm sorry, I didn't quite catch that. Could you please repeat?", "task": null, "parameters": {}}`;
       
-      const result = await sendToGemini(command, context);
+      // Use ref to get current conversation history (avoids closure issues)
+      console.log('📝 Sending to Gemini with history length:', conversationHistoryRef.current.length);
+      const result = await sendToGemini(command, context, conversationHistoryRef.current);
       
       if (result.error) {
         console.error('Gemini error:', result.error);
@@ -250,6 +264,16 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
           if (aiResponse.task && onTaskExecute) {
             onTaskExecute(aiResponse.task, aiResponse.parameters || {});
           }
+          
+          // Add to conversation history (both state and ref)
+          const newHistory = [
+            ...conversationHistoryRef.current,
+            { role: 'user' as const, parts: command },
+            { role: 'model' as const, parts: aiResponse.message }
+          ];
+          conversationHistoryRef.current = newHistory;
+          setConversationHistory(newHistory);
+          console.log('💬 Conversation history updated. New length:', newHistory.length);
           
           // Speak the response using ElevenLabs
           speakText(aiResponse.message);

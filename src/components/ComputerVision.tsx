@@ -61,6 +61,7 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
 
   useEffect(() => {
     startCamera();
+    startGame();
     return () => cleanup();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -401,9 +402,9 @@ export function ComputerVision({ onClose }: ComputerVisionProps) {
                     Move your hand or jump to make the dino jump!<br />
                     Or press SPACE to jump.
                   </p>
-                  <button onClick={startGame} className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-xl transition-colors flex items-center gap-2 mx-auto">
+                  {/* <button onClick={startGame} className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-xl transition-colors flex items-center gap-2 mx-auto">
                     <Play className="w-6 h-6" /> Start Game
-                  </button>
+                  </button> */}
                 </div>
               </div>
             )}

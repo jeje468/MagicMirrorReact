@@ -14,9 +14,15 @@ export interface GeminiResponse {
   error?: string;
 }
 
+export interface ConversationMessage {
+  role: 'user' | 'model';
+  parts: string;
+}
+
 export async function sendToGemini(
   prompt: string,
-  context?: string
+  context?: string,
+  conversationHistory?: ConversationMessage[]
 ): Promise<GeminiResponse> {
   if (!genAI) {
     return {
@@ -28,17 +34,42 @@ export async function sendToGemini(
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    // Prepare the prompt with context
-    const fullPrompt = context 
-      ? `${context}\n\nUser command: ${prompt}`
-      : prompt;
+    // If we have conversation history, use chat session
+    if (conversationHistory && conversationHistory.length > 0) {
+      console.log('🔄 Using chat session with', conversationHistory.length, 'history messages');
+      const chat = model.startChat({
+        history: conversationHistory.map(msg => ({
+          role: msg.role,
+          parts: [{ text: msg.parts }]
+        })),
+        generationConfig: {
+          maxOutputTokens: 500,
+        },
+      });
 
-    // Generate response
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    const text = response.text();
+      // Add system context as a reminder if provided
+      const messageToSend = context 
+        ? `${context}\n\nUser: ${prompt}`
+        : prompt;
 
-    return { text };
+      const result = await chat.sendMessage(messageToSend);
+      const response = await result.response;
+      const text = response.text();
+
+      return { text };
+    } else {
+      // First message or no history - use regular generation with context
+      console.log('🆕 First message - no history yet');
+      const fullPrompt = context 
+        ? `${context}\n\nUser command: ${prompt}`
+        : prompt;
+
+      const result = await model.generateContent(fullPrompt);
+      const response = await result.response;
+      const text = response.text();
+
+      return { text };
+    }
   } catch (error: any) {
     console.error('Error communicating with Gemini:', error);
     return {
