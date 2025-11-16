@@ -68,6 +68,7 @@ export default function App() {
         break;
         
       case 'make_call':
+        handleStartTestCall();
         setShowVideoCall(true);
         break;
         

@@ -386,13 +386,6 @@ export function VoiceControl({ onCommand, onGeminiResponse, onTaskExecute }: Voi
         </div>
       )}
       
-      {/* Wake word status */}
-      {wakeWordStatus !== 'Listening for wake word...' && (
-        <div className="mb-2 px-3 py-1 bg-blue-600/50 rounded-full text-xs max-w-xs">
-          {wakeWordStatus}
-        </div>
-      )}
-      
       <button
         onClick={toggleListening}
         style={{
