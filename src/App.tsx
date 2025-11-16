@@ -5,15 +5,34 @@ import { Calendar } from './components/Calendar';
 import { News } from './components/News';
 import { Greeting } from './components/Greeting';
 import { VoiceControl } from './components/VoiceControl';
-import { VideoCall } from './components/VideoCall';
 import { ComputerVision } from './components/ComputerVision';
 import { getGeoInfo } from './lib/location';
 import { estimateSunPosition, sunToScreenPosition } from './lib/sun';
-import { Video, Camera } from "lucide-react";
+import { DailyCallUI } from './components/DailyCallUI';
 
 export default function App() {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showVision, setShowVision] = useState(false);
+  const [dynamicRoomUrl, setDynamicRoomUrl] = useState("");
+
+  const handleStartTestCall = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/create-room");
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Server returned ${res.status}: ${text}`);
+      }
+
+      const { roomUrl } = await res.json();
+      setDynamicRoomUrl(roomUrl);
+      console.log("URL:", roomUrl);
+      setShowVideoCall(true);
+
+    } catch (error) {
+      console.error("Failed to start test call:", error);
+    }
+  };
 
   const initialGreeting = useMemo(() => {
     const h = new Date().getHours();
@@ -184,14 +203,19 @@ export default function App() {
         onTaskExecute={handleTaskExecution}
       />
 
-      {/* Video Call Overlay */}
-      {showVideoCall && (
-        <VideoCall onClose={() => setShowVideoCall(false)} />
-      )}
-
       {/* Computer Vision Panel */}
       {showVision && (
         <ComputerVision onClose={() => setShowVision(false)} />
+      )}
+
+      {showVideoCall && dynamicRoomUrl!="" && (
+        <DailyCallUI
+          dynamicRoomUrl={dynamicRoomUrl}
+          onClose={() => {
+            setShowVideoCall(false);
+            setDynamicRoomUrl("");
+          }}
+        />
       )}
     </div>
   );

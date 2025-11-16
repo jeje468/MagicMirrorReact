@@ -17,6 +17,7 @@ export function Calendar() {
         setHeading('Birthdays');
         setHolidays([
           { name: 'Andrei Iliescu', date: 'March 03' },
+          { name: 'Máté Bene', date: 'May 02' },
           { name: 'Riccardo Legnini', date: 'May 20' },
           { name: 'Sofia Zandonà', date: 'September 17' },
         ]);

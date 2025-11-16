@@ -3,6 +3,8 @@
       "version": "0.1.0",
       "private": true,
       "dependencies": {
+            "@daily-co/daily-js": "^0.85.0",
+            "@daily-co/daily-react": "^0.24.0",
             "@google/generative-ai": "^0.24.1",
             "@picovoice/porcupine-web": "^3.0.3",
             "@picovoice/web-voice-processor": "^4.0.9",
@@ -35,10 +37,14 @@
             "class-variance-authority": "^0.7.1",
             "clsx": "*",
             "cmdk": "^1.1.1",
+            "cors": "^2.8.5",
+            "dotenv": "^17.2.3",
             "embla-carousel-react": "^8.6.0",
+            "express": "^5.1.0",
             "input-otp": "^1.4.2",
             "lucide-react": "^0.487.0",
             "next-themes": "^0.4.6",
+            "node-fetch": "^3.3.2",
             "react": "^18.3.1",
             "react-day-picker": "^8.10.1",
             "react-dom": "^18.3.1",
@@ -50,6 +56,8 @@
             "vaul": "^1.1.2"
       },
       "devDependencies": {
+            "@types/cors": "^2.8.19",
+            "@types/express": "^5.0.5",
             "@types/node": "^20.10.0",
             "@types/react": "^19.2.5",
             "@types/react-dom": "^19.2.3",
