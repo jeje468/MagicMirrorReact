@@ -67,7 +67,8 @@
       "scripts": {
             "dev": "vite",
             "build": "vite build",
+            "download:ts": "ts-node server.ts",
             "start:server": "npx ts-node server.ts"
       }
-      
+
 }
