@@ -66,8 +66,6 @@
       },
       "scripts": {
             "dev": "vite",
-            "build": "vite build",
-            "download:ts": "npm install -g typescript ts-node",
-            "start:server": "npx ts-node server.ts"
+            "build": "vite build"
       }
 }
